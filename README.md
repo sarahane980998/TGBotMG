@@ -1,37 +1,41 @@
-# Telegram 多机器人菜单与发布后台
+# Telegram 机器人管理后台
 
-这个版本包含：登录页、左侧导航、多机器人登记与运行、每个机器人独立菜单、频道目录、提示或直达按钮、文本/图片发布和发布记录。机器人、频道、菜单和发布记录保存到独立 MySQL 数据库；Token 加密后存储，接口不会回显 Token。
+多机器人管理后台，支持频道与群组管理、频道消息按钮模板、内容发布、发布记录、私聊自动回复和机器人客服。
 
-## 安全准备
+## 代码结构
 
-- 聊天中出现过的旧服务器密码和旧 Bot Token 都要撤销或更换。新 Token 只在管理后台登记，不要发在聊天里。
-- 在 .env 中设置强密码 ADMIN_PASSWORD 和随机 ADMIN_SECRET。ADMIN_SECRET 更换后，先前保存的加密 Token 将无法解密。
-- 后台使用 ADMIN_USERNAME 和 ADMIN_PASSWORD 登录。Node 服务监听 127.0.0.1，由现有 Nginx HTTPS 虚拟主机代理到网页路径。
-- 旧测试机器人 Token 已按泄露凭据处理，不会自动导入；后台会显示 HZtest44bot 为“待绑定新 Token”。测试频道 @HZTest44 会预置在频道管理中。
+- `src/server.js`：唯一服务启动入口，负责监听端口与优雅关闭。
+- `src/app.js`：组装 Express、存储、机器人运行时和路由。
+- `src/routes/`：按管理功能注册 HTTP API；`admin.js` 管理接口，`support.js` 客服接口。
+- `src/db/`：MySQL 状态存储与客服消息读写。
+- `src/services/`：Telegram 机器人运行时与图片上传。
+- `src/config.js`、`src/security.js`：环境配置与 Token 加密。
+- `public/index.html`、`public/assets/`：管理页面结构、样式和按功能拆分的浏览器脚本。脚本按页面依赖顺序加载。
 
-## 本地启动
+## 安全配置
+
+- 只在服务器 `.env` 中设置 `ADMIN_USERNAME`、强密码 `ADMIN_PASSWORD`、随机 `ADMIN_SECRET` 和数据库凭据。`.env` 已加入忽略列表，不要提交。
+- 更换 `ADMIN_SECRET` 后，数据库里原先加密的机器人 Token 将无法解密。
+- 聊天中曾经贴出的旧服务器密码、GitHub 密码和机器人 Token 应撤销或更换；Bot Token 只在后台绑定。
+- 默认 Node 监听地址由 `ADMIN_HOST` 控制，默认端口为 `8080`；如使用 Nginx 反向代理，请让代理目标与该配置一致。
+
+## 本地运行
 
 ```powershell
 Copy-Item .env.example .env
-# 编辑 .env，设置 ADMIN_PASSWORD 和 ADMIN_SECRET
+# 编辑 .env，填入数据库和管理后台凭据
 npm install
+npm run check
 npm run start
 ```
 
-浏览器访问 http://127.0.0.1:8080。先登记一个新 Bot Token，再添加频道。要向频道发布内容，机器人必须是该频道管理员并有发消息权限。
+默认页面路径为 `/tg-admin/`。当前服务器访问入口为 `http://47.242.35.110/tg-admin/`；该地址由服务器网络与反向代理配置决定。
 
-## 服务器后台访问
-
-服务器管理页面：
+## 代码检查与格式化
 
 ```powershell
-https://wsxmg.nodejstool.com/tg-admin/
+npm run check
+npm run format
 ```
 
-用 ADMIN_USERNAME 和 ADMIN_PASSWORD 登录，无需 SSH 隧道。
-
-## 菜单和频道
-
-菜单模板中的按钮可以设为 alert（弹出短提示，再发介绍卡片）或 channel（直接打开频道链接）。新增频道后，在菜单按钮 JSON 中将 channelId 设为该频道记录的 id。图片发布使用可公开访问的图片 URL；文字和图片会直接发送到所选频道并保存结果。
-
-测试菜单的 49 个按钮目前都指向 @HZTest44，作为初始示例。
+`npm run check` 会检查 JavaScript 语法并验证 Prettier 格式。修改代码后建议先运行 `npm run format`，再运行 `npm run check`。
